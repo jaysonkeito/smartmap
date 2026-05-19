@@ -13,9 +13,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (userId.length !== 9) {
+    if (userId.length < 1) {
       return NextResponse.json(
-        { error: 'ID number must be 9 digits' },
+        { error: 'ID number is required' },
         { status: 400 }
       );
     }

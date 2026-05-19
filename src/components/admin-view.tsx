@@ -1324,7 +1324,7 @@ export function AdminView() {
             </div>
             <Button
               onClick={handleCreateUser}
-              disabled={userForm.userId.length !== 9 || !userForm.name || !userForm.password}
+              disabled={userForm.userId.length === 0 || !userForm.name || !userForm.password}
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               Create User

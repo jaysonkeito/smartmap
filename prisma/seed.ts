@@ -248,7 +248,7 @@ async function main() {
     { userId: "202300123", name: "Juan Dela Cruz", role: "Student", password: "password123", isAdmin: false },
     { userId: "202300124", name: "Maria Garcia", role: "Student", password: "password123", isAdmin: false },
     // Admin account
-    { userId: "admin123", name: "System Administrator", role: "Admin", password: "admin123", isAdmin: true },
+    { userId: "202600001", name: "System Administrator", role: "Admin", password: "admin2026", isAdmin: true },
   ];
 
   for (const u of testUsers) {
@@ -335,7 +335,7 @@ async function main() {
   console.log('  Faculty: 202300399, 202300361, 202300401, 202300415 - password: password123');
   console.log('  Staff:   202300500, 202300501 - password: password123');
   console.log('  Student: 202300123, 202300124 - password: password123');
-  console.log('  Admin:   admin123 (System Administrator) - password: admin123');
+  console.log('  Admin:   202600001 (System Administrator) - password: admin2026');
 }
 
 main()

@@ -115,12 +115,11 @@ export function LoginView() {
                 <Input
                   id="id-number"
                   type="text"
-                  inputMode="numeric"
-                  maxLength={9}
-                  placeholder="Enter your 9-digit ID"
+                  maxLength={20}
+                  placeholder="Enter your ID Number"
                   value={idNumber}
                   onChange={(e) =>
-                    setIdNumber(e.target.value.replace(/\D/g, '').slice(0, 9))
+                    setIdNumber(e.target.value.trim())
                   }
                   className="h-11"
                   required
@@ -158,7 +157,7 @@ export function LoginView() {
               <Button
                 type="submit"
                 className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-                disabled={isLoading || idNumber.length !== 9}
+                disabled={isLoading || idNumber.length === 0}
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
