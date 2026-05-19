@@ -13,11 +13,26 @@ import {
   Loader2,
   X,
   Shield,
+  Navigation,
+  MapPin,
+  Route,
+  Footprints,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -64,11 +79,22 @@ export function MapView() {
     setSearchQuery,
     searchResults,
     setSearchResults,
+    showNavigation,
+    setShowNavigation,
+    navStart,
+    setNavStart,
+    navEnd,
+    setNavEnd,
+    routeWaypoints,
+    setRouteWaypoints,
+    routeInfo,
+    setRouteInfo,
   } = useAppStore();
 
   const [isLoadingBuildings, setIsLoadingBuildings] = useState(false);
   const [isLoadingRoom, setIsLoadingRoom] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [isFindingRoute, setIsFindingRoute] = useState(false);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Load buildings
@@ -146,9 +172,77 @@ export function MapView() {
     await handleRoomClick(roomId);
   };
 
+  // Handle find route
+  const handleFindRoute = async () => {
+    if (!navStart || !navEnd) return;
+
+    setIsFindingRoute(true);
+    try {
+      const params = new URLSearchParams();
+      if (navStart.type === 'building') {
+        params.set('from', String(navStart.id));
+      } else {
+        params.set('fromRoom', String(navStart.id));
+      }
+      if (navEnd.type === 'building') {
+        params.set('to', String(navEnd.id));
+      } else {
+        params.set('toRoom', String(navEnd.id));
+      }
+
+      const res = await fetch(`/api/route?${params.toString()}`);
+      const data = await res.json();
+
+      if (res.ok && data.route) {
+        const waypoints: [number, number][] = data.route.waypoints.map(
+          (wp: { lat: number; lng: number }) => [wp.lat, wp.lng] as [number, number]
+        );
+        setRouteWaypoints(waypoints);
+        setRouteInfo({
+          distanceMeters: data.route.distanceMeters,
+          estimatedMinutes: data.route.estimatedMinutes,
+          stepCount: data.route.stepCount,
+        });
+      } else {
+        setRouteWaypoints(null);
+        setRouteInfo(null);
+      }
+    } catch (error) {
+      console.error('Route finding error:', error);
+      setRouteWaypoints(null);
+      setRouteInfo(null);
+    } finally {
+      setIsFindingRoute(false);
+    }
+  };
+
+  // Handle clear route
+  const handleClearRoute = () => {
+    setNavStart(null);
+    setNavEnd(null);
+    setRouteWaypoints(null);
+    setRouteInfo(null);
+  };
+
+  // Handle navigation select change for start
+  const handleNavStartChange = (value: string) => {
+    const [type, idStr, ...nameParts] = value.split('|');
+    const id = parseInt(idStr, 10);
+    const name = nameParts.join('|');
+    setNavStart({ type: type as 'building' | 'room', id, name });
+  };
+
+  // Handle navigation select change for end
+  const handleNavEndChange = (value: string) => {
+    const [type, idStr, ...nameParts] = value.split('|');
+    const id = parseInt(idStr, 10);
+    const name = nameParts.join('|');
+    setNavEnd({ type: type as 'building' | 'room', id, name });
+  };
+
   return (
     <div className="flex flex-col h-full relative">
-      {/* Search Bar */}
+      {/* Search Bar & Navigation Toggle */}
       <div className="absolute top-3 left-3 right-3 z-10">
         <div className="relative">
           <div className="flex items-center bg-white rounded-lg shadow-lg border border-emerald-100 overflow-hidden">
@@ -167,12 +261,230 @@ export function MapView() {
                   setSearchResults(null);
                   setShowSearch(false);
                 }}
-                className="mr-2 p-1 hover:bg-gray-100 rounded"
+                className="mr-1 p-1 hover:bg-gray-100 rounded"
               >
                 <X className="h-4 w-4 text-muted-foreground" />
               </button>
             )}
+            <Separator orientation="vertical" className="h-6 mx-1" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowNavigation(!showNavigation)}
+              className={`mr-1 gap-1.5 h-8 px-2 rounded-md transition-colors ${
+                showNavigation || routeWaypoints
+                  ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                  : 'text-muted-foreground hover:text-emerald-700 hover:bg-emerald-50'
+              }`}
+            >
+              <Navigation className="h-4 w-4" />
+              <span className="text-xs font-medium">Navigate</span>
+            </Button>
           </div>
+
+          {/* Navigation Panel */}
+          <AnimatePresence>
+            {showNavigation && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                className="overflow-hidden"
+              >
+                <div className="mt-2 bg-white rounded-lg shadow-lg border border-emerald-100 p-3 space-y-3">
+                  {/* Start Location */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-emerald-700 flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5 text-emerald-500" />
+                      Start Location
+                    </label>
+                    <Select
+                      value={navStart ? `${navStart.type}|${navStart.id}|${navStart.name}` : ''}
+                      onValueChange={handleNavStartChange}
+                    >
+                      <SelectTrigger className="w-full h-9 text-sm border-emerald-200 focus:border-emerald-400">
+                        <SelectValue placeholder="Select starting point..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        <SelectGroup>
+                          <SelectLabel className="text-emerald-700 font-semibold text-xs">
+                            Buildings
+                          </SelectLabel>
+                          {buildings.map((b) => (
+                            <SelectItem
+                              key={`b-${b.id}`}
+                              value={`building|${b.id}|${b.name}`}
+                              className="text-sm"
+                            >
+                              <Building2 className="h-3.5 w-3.5 text-emerald-500 mr-1.5" />
+                              {b.name}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                        <SelectSeparator />
+                        <SelectGroup>
+                          <SelectLabel className="text-emerald-700 font-semibold text-xs">
+                            Rooms by Building
+                          </SelectLabel>
+                          {buildings.filter((b) => b.rooms.length > 0).map((b) => (
+                            <SelectGroup key={`rooms-${b.id}`}>
+                              <SelectLabel className="text-xs text-muted-foreground pl-4">
+                                {b.name}
+                              </SelectLabel>
+                              {b.rooms.map((r) => (
+                                <SelectItem
+                                  key={`r-${r.id}`}
+                                  value={`room|${r.id}|${r.name}`}
+                                  className="text-sm pl-6"
+                                >
+                                  <DoorOpen className="h-3.5 w-3.5 text-emerald-400 mr-1.5" />
+                                  {r.name}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* End Location */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-red-600 flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5 text-red-500" />
+                      Destination
+                    </label>
+                    <Select
+                      value={navEnd ? `${navEnd.type}|${navEnd.id}|${navEnd.name}` : ''}
+                      onValueChange={handleNavEndChange}
+                    >
+                      <SelectTrigger className="w-full h-9 text-sm border-emerald-200 focus:border-emerald-400">
+                        <SelectValue placeholder="Select destination..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        <SelectGroup>
+                          <SelectLabel className="text-emerald-700 font-semibold text-xs">
+                            Buildings
+                          </SelectLabel>
+                          {buildings.map((b) => (
+                            <SelectItem
+                              key={`b-${b.id}`}
+                              value={`building|${b.id}|${b.name}`}
+                              className="text-sm"
+                            >
+                              <Building2 className="h-3.5 w-3.5 text-emerald-500 mr-1.5" />
+                              {b.name}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                        <SelectSeparator />
+                        <SelectGroup>
+                          <SelectLabel className="text-emerald-700 font-semibold text-xs">
+                            Rooms by Building
+                          </SelectLabel>
+                          {buildings.filter((b) => b.rooms.length > 0).map((b) => (
+                            <SelectGroup key={`rooms-${b.id}`}>
+                              <SelectLabel className="text-xs text-muted-foreground pl-4">
+                                {b.name}
+                              </SelectLabel>
+                              {b.rooms.map((r) => (
+                                <SelectItem
+                                  key={`r-${r.id}`}
+                                  value={`room|${r.id}|${r.name}`}
+                                  className="text-sm pl-6"
+                                >
+                                  <DoorOpen className="h-3.5 w-3.5 text-emerald-400 mr-1.5" />
+                                  {r.name}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleFindRoute}
+                      disabled={!navStart || !navEnd || isFindingRoute}
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 h-9"
+                    >
+                      {isFindingRoute ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Route className="h-4 w-4" />
+                      )}
+                      {isFindingRoute ? 'Finding Route...' : 'Find Route'}
+                    </Button>
+                    {routeWaypoints && (
+                      <Button
+                        onClick={handleClearRoute}
+                        variant="outline"
+                        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 gap-1.5 h-9"
+                      >
+                        <X className="h-4 w-4" />
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Route Info */}
+                  <AnimatePresence>
+                    {routeInfo && routeWaypoints && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.2 }}
+                        className="bg-emerald-50 border border-emerald-200 rounded-lg p-3"
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <Footprints className="h-4 w-4 text-emerald-600" />
+                          <span className="text-sm font-semibold text-emerald-800">Route Found</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="text-center">
+                            <p className="text-lg font-bold text-emerald-700">
+                              {routeInfo.distanceMeters >= 1000
+                                ? `${(routeInfo.distanceMeters / 1000).toFixed(1)}`
+                                : routeInfo.distanceMeters}
+                            </p>
+                            <p className="text-[10px] text-emerald-600 font-medium">
+                              {routeInfo.distanceMeters >= 1000 ? 'km' : 'meters'}
+                            </p>
+                          </div>
+                          <div className="text-center border-x border-emerald-200">
+                            <p className="text-lg font-bold text-emerald-700">
+                              ~{routeInfo.estimatedMinutes}
+                            </p>
+                            <p className="text-[10px] text-emerald-600 font-medium">min walk</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-lg font-bold text-emerald-700">
+                              {routeInfo.stepCount}
+                            </p>
+                            <p className="text-[10px] text-emerald-600 font-medium">steps</p>
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-emerald-200">
+                          <div className="flex items-center gap-2 text-xs text-emerald-700">
+                            <span className="inline-block w-3 h-3 rounded-full bg-emerald-500 border-2 border-white shadow-sm" />
+                            {navStart?.name}
+                            <ChevronRight className="h-3 w-3 text-emerald-400" />
+                            <span className="inline-block w-3 h-3 rounded-full bg-red-500 border-2 border-white shadow-sm" />
+                            {navEnd?.name}
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Search Results Dropdown */}
           <AnimatePresence>
@@ -256,7 +568,11 @@ export function MapView() {
             </div>
           </div>
         ) : (
-          <CampusMap buildings={buildings} onBuildingClick={handleBuildingClick} />
+          <CampusMap
+            buildings={buildings}
+            onBuildingClick={handleBuildingClick}
+            routeWaypoints={routeWaypoints}
+          />
         )}
       </div>
 

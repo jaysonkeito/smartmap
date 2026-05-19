@@ -8,7 +8,6 @@ import {
   DoorOpen,
   Users,
   BookOpen,
-  ChevronRight,
   ChevronDown,
   Loader2,
   Shield,
@@ -22,7 +21,11 @@ import {
   LogIn,
   LogOut as LogoutIcon,
   Briefcase,
+  Mail,
+  GraduationCap,
   UserCheck,
+  UserX,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,6 +44,28 @@ import {
 } from '@/components/ui/dialog';
 import { useAppStore } from '@/store/app-store';
 
+// ─── NORSU Constants ───
+const COLLEGES = [
+  'College of Agriculture and Forestry (CAF)',
+  'College of Arts and Sciences (CAS)',
+  'College of Business Administration (CBA)',
+  'College of Criminal Justice Education (CCJE)',
+  'College of Industrial Technology (CIT)',
+  'College of Teacher Education (CTED)',
+];
+
+const PROGRAMS_BY_COLLEGE: Record<string, string[]> = {
+  'College of Agriculture and Forestry (CAF)': ['Bachelor of Agricultural Technology', 'Bachelor of Science in Forestry', 'Bachelor of Science in Agricultural Extension'],
+  'College of Arts and Sciences (CAS)': ['Bachelor of Arts in English', 'Bachelor of Arts in Political Science', 'Bachelor of Science in Biology', 'Bachelor of Science in Mathematics', 'Bachelor of Science in Psychology'],
+  'College of Business Administration (CBA)': ['Bachelor of Science in Business Administration', 'Bachelor of Science in Entrepreneurship'],
+  'College of Criminal Justice Education (CCJE)': ['Bachelor of Science in Criminology'],
+  'College of Industrial Technology (CIT)': ['Bachelor of Industrial Technology', 'Bachelor of Science in Information Technology', 'Bachelor of Science in Electronics Technology'],
+  'College of Teacher Education (CTED)': ['Bachelor of Elementary Education', 'Bachelor of Secondary Education', 'Bachelor of Physical Education'],
+};
+
+const YEAR_LEVELS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
+
+// ─── Interfaces ───
 interface AdminBuilding {
   id: number;
   name: string;
@@ -60,6 +85,14 @@ interface AdminUser {
   isAdmin: boolean;
   currentRoom: string;
   createdAt: string;
+  email?: string | null;
+  college?: string | null;
+  program?: string | null;
+  yearLevel?: string | null;
+  department?: string | null;
+  position?: string | null;
+  isActive?: boolean;
+  lastActivityAt?: string | null;
 }
 
 interface AdminLogin {
@@ -86,6 +119,19 @@ interface AdminStats {
   activeLogins: number;
 }
 
+const defaultUserForm = {
+  userId: '',
+  name: '',
+  password: '',
+  role: 'Student',
+  email: '',
+  college: '',
+  program: '',
+  yearLevel: '',
+  department: '',
+  position: '',
+};
+
 export function AdminView() {
   const { user, setFlashMessage } = useAppStore();
   const adminUserId = user?.userId || '';
@@ -107,7 +153,11 @@ export function AdminView() {
   const [roomForm, setRoomForm] = useState({ name: '', buildingId: '' });
 
   const [showUserDialog, setShowUserDialog] = useState(false);
-  const [userForm, setUserForm] = useState({ userId: '', name: '', password: '', role: 'Student' });
+  const [userForm, setUserForm] = useState({ ...defaultUserForm });
+
+  // Edit user dialog
+  const [showEditUserDialog, setShowEditUserDialog] = useState(false);
+  const [editUserForm, setEditUserForm] = useState({ ...defaultUserForm });
 
   // Expanded buildings for rooms view
   const [expandedBuilding, setExpandedBuilding] = useState<number | null>(null);
@@ -271,14 +321,13 @@ export function AdminView() {
   // Building CRUD
   const handleSaveBuilding = async () => {
     const isEdit = !!editingBuilding;
-    const url = isEdit ? '/api/admin/buildings' : '/api/admin/buildings';
     const method = isEdit ? 'PUT' : 'POST';
     const body = isEdit
       ? { adminUserId, id: editingBuilding.id, ...buildingForm }
       : { adminUserId, ...buildingForm };
 
     try {
-      const res = await fetch(url, {
+      const res = await fetch('/api/admin/buildings', {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -378,13 +427,81 @@ export function AdminView() {
       if (res.ok) {
         setFlashMessage({ type: 'success', text: 'User created' });
         setShowUserDialog(false);
-        setUserForm({ userId: '', name: '', password: '', role: 'Student' });
+        setUserForm({ ...defaultUserForm });
         fetchUsers();
       } else {
         setFlashMessage({ type: 'error', text: data.error });
       }
     } catch {
       setFlashMessage({ type: 'error', text: 'Failed to create user' });
+    }
+  };
+
+  const handleEditUser = async () => {
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminUserId,
+          userId: editUserForm.userId,
+          name: editUserForm.name,
+          email: editUserForm.email || null,
+          college: editUserForm.college || null,
+          program: editUserForm.program || null,
+          yearLevel: editUserForm.yearLevel || null,
+          department: editUserForm.department || null,
+          position: editUserForm.position || null,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFlashMessage({ type: 'success', text: 'User updated' });
+        setShowEditUserDialog(false);
+        fetchUsers();
+      } else {
+        setFlashMessage({ type: 'error', text: data.error });
+      }
+    } catch {
+      setFlashMessage({ type: 'error', text: 'Failed to update user' });
+    }
+  };
+
+  const handleDeactivateUser = async (userId: string) => {
+    if (!confirm('Deactivate this user? They will not be able to log in.')) return;
+    try {
+      const res = await fetch(`/api/admin/users?userId=${userId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'x-admin-user-id': adminUserId },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFlashMessage({ type: 'success', text: 'User deactivated' });
+        fetchUsers();
+      } else {
+        setFlashMessage({ type: 'error', text: data.error });
+      }
+    } catch {
+      setFlashMessage({ type: 'error', text: 'Failed to deactivate user' });
+    }
+  };
+
+  const handleReactivateUser = async (userId: string) => {
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminUserId, userId, isActive: true }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFlashMessage({ type: 'success', text: 'User reactivated' });
+        fetchUsers();
+      } else {
+        setFlashMessage({ type: 'error', text: data.error });
+      }
+    } catch {
+      setFlashMessage({ type: 'error', text: 'Failed to reactivate user' });
     }
   };
 
@@ -441,6 +558,22 @@ export function AdminView() {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' ' + d.toLocaleDateString();
   };
 
+  const openEditUser = (u: AdminUser) => {
+    setEditUserForm({
+      userId: u.userId,
+      name: u.name,
+      password: '',
+      role: u.role,
+      email: u.email || '',
+      college: u.college || '',
+      program: u.program || '',
+      yearLevel: u.yearLevel || '',
+      department: u.department || '',
+      position: u.position || '',
+    });
+    setShowEditUserDialog(true);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -487,7 +620,6 @@ export function AdminView() {
             </div>
           ) : stats ? (
             <div className="space-y-4">
-              {/* Stats Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0 }}>
                   <Card className="border-emerald-100">
@@ -545,7 +677,6 @@ export function AdminView() {
                 </motion.div>
               </div>
 
-              {/* Recent Activity */}
               <Card className="border-emerald-100">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm flex items-center gap-2 text-emerald-800">
@@ -749,7 +880,7 @@ export function AdminView() {
           )}
         </TabsContent>
 
-        {/* ─── Users Tab ─── */}
+        {/* ─── Users Tab (Enhanced) ─── */}
         <TabsContent value="users" className="px-4 mt-2">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-emerald-800">Users ({users.length})</h3>
@@ -757,7 +888,7 @@ export function AdminView() {
               size="sm"
               className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs gap-1"
               onClick={() => {
-                setUserForm({ userId: '', name: '', password: '', role: 'Student' });
+                setUserForm({ ...defaultUserForm });
                 setShowUserDialog(true);
               }}
             >
@@ -770,38 +901,118 @@ export function AdminView() {
             <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
           ) : (
             <div className="space-y-1.5 max-h-[calc(100vh-18rem)] overflow-y-auto">
-              {users.map((u) => (
-                <motion.div
-                  key={u.userId}
-                  initial={{ opacity: 0, x: -5 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="flex items-center gap-2 p-2.5 rounded-lg border border-emerald-100 hover:border-emerald-200 transition-colors"
-                >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 shrink-0">
-                    <User className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-xs font-semibold truncate">{u.name}</p>
-                      {u.isAdmin && <Shield className="h-3 w-3 text-red-500 shrink-0" />}
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-[10px] font-mono text-muted-foreground">{u.userId}</span>
-                      <Badge className={`${roleColorMap[u.role] || 'bg-gray-100 text-gray-800'} text-[10px] h-4 px-1.5`}>
-                        {u.role}
-                      </Badge>
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={`h-7 text-[10px] shrink-0 ${u.isAdmin ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'}`}
-                    onClick={() => handleToggleAdmin(u.userId, u.isAdmin)}
+              {users.map((u) => {
+                const isDeactivated = u.isActive === false;
+                return (
+                  <motion.div
+                    key={u.userId}
+                    initial={{ opacity: 0, x: -5 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className={`flex items-start gap-2 p-2.5 rounded-lg border transition-colors ${
+                      isDeactivated
+                        ? 'border-gray-200 bg-gray-50/50 opacity-60'
+                        : 'border-emerald-100 hover:border-emerald-200'
+                    }`}
                   >
-                    {u.isAdmin ? 'Revoke Admin' : 'Make Admin'}
-                  </Button>
-                </motion.div>
-              ))}
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-full shrink-0 ${
+                      isDeactivated ? 'bg-gray-100 text-gray-500' : 'bg-emerald-100 text-emerald-700'
+                    }`}>
+                      <User className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-xs font-semibold truncate">{u.name}</p>
+                        {u.isAdmin && <Shield className="h-3 w-3 text-red-500 shrink-0" />}
+                        {isDeactivated && (
+                          <Badge className="bg-gray-200 text-gray-600 text-[9px] h-4 px-1">Deactivated</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <span className="text-[10px] font-mono text-muted-foreground">{u.userId}</span>
+                        <Badge className={`${roleColorMap[u.role] || 'bg-gray-100 text-gray-800'} text-[10px] h-4 px-1.5`}>
+                          {u.role}
+                        </Badge>
+                      </div>
+                      {/* Additional info badges */}
+                      <div className="flex items-center gap-1 mt-1 flex-wrap">
+                        {u.role === 'Student' && u.college && (
+                          <Badge variant="outline" className="text-[9px] h-4 px-1 border-emerald-200 text-emerald-700">
+                            <GraduationCap className="h-2.5 w-2.5 mr-0.5" />
+                            {u.college.replace('College of ', '').replace(' (', ' (').split(' (')[0]}
+                          </Badge>
+                        )}
+                        {u.role === 'Student' && u.yearLevel && (
+                          <Badge variant="outline" className="text-[9px] h-4 px-1 border-teal-200 text-teal-700">
+                            {u.yearLevel}
+                          </Badge>
+                        )}
+                        {u.role === 'Staff' && u.department && (
+                          <Badge variant="outline" className="text-[9px] h-4 px-1 border-amber-200 text-amber-700">
+                            {u.department}
+                          </Badge>
+                        )}
+                        {u.role === 'Staff' && u.position && (
+                          <Badge variant="outline" className="text-[9px] h-4 px-1 border-amber-200 text-amber-700">
+                            {u.position}
+                          </Badge>
+                        )}
+                        {u.role === 'Faculty' && u.college && (
+                          <Badge variant="outline" className="text-[9px] h-4 px-1 border-emerald-200 text-emerald-700">
+                            <Building2 className="h-2.5 w-2.5 mr-0.5" />
+                            {u.college.replace('College of ', '').split(' (')[0]}
+                          </Badge>
+                        )}
+                        {u.email && (
+                          <Badge variant="outline" className="text-[9px] h-4 px-1 border-gray-200 text-gray-600">
+                            <Mail className="h-2.5 w-2.5 mr-0.5" />
+                            {u.email}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-emerald-600"
+                        onClick={() => openEditUser(u)}
+                        title="Edit user"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      {!isDeactivated ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-red-600"
+                          onClick={() => handleDeactivateUser(u.userId)}
+                          title="Deactivate user"
+                        >
+                          <UserX className="h-3.5 w-3.5" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-emerald-600"
+                          onClick={() => handleReactivateUser(u.userId)}
+                          title="Reactivate user"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={`h-7 text-[10px] shrink-0 ${u.isAdmin ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'}`}
+                        onClick={() => handleToggleAdmin(u.userId, u.isAdmin)}
+                      >
+                        {u.isAdmin ? 'Revoke Admin' : 'Make Admin'}
+                      </Button>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           )}
         </TabsContent>
@@ -885,7 +1096,6 @@ export function AdminView() {
             </Button>
           </div>
 
-          {/* Office selector */}
           <Card className="border-emerald-100 mb-3">
             <CardContent className="p-3 space-y-3">
               <div className="space-y-1.5">
@@ -932,231 +1142,71 @@ export function AdminView() {
                         onChange={(e) => setAssignForm({ ...assignForm, role: e.target.value })}
                         className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
                       >
-                        {selectedOfficeId && offices.find(o => o.id === parseInt(selectedOfficeId))?.name.toLowerCase().includes('caf') ||
-                         offices.find(o => o.id === parseInt(selectedOfficeId))?.name.toLowerCase().includes('cas') ||
-                         offices.find(o => o.id === parseInt(selectedOfficeId))?.name.toLowerCase().includes('cba') ||
-                         offices.find(o => o.id === parseInt(selectedOfficeId))?.name.toLowerCase().includes('cit') ||
-                         offices.find(o => o.id === parseInt(selectedOfficeId))?.name.toLowerCase().includes('ccje') ||
-                         offices.find(o => o.id === parseInt(selectedOfficeId))?.name.toLowerCase().includes('cted') ? (
-                          <>
-                            <option value="College Dean">College Dean</option>
-                            <option value="Assistant Dean">Assistant Dean</option>
-                            <option value="Faculty">Faculty Member</option>
-                            <option value="Staff">Staff Member</option>
-                          </>
-                        ) : (
-                          <>
-                            <option value="Faculty">Faculty Member</option>
-                            <option value="Staff">Staff Member</option>
-                          </>
-                        )}
+                        <option value="Faculty">Faculty</option>
+                        <option value="Staff">Staff</option>
                       </select>
                     </div>
                   </div>
                   <Button
-                    size="sm"
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs gap-1"
                     onClick={handleAssignOffice}
                     disabled={!assignForm.userId}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs"
                   >
-                    <UserPlus className="h-3.5 w-3.5" />
                     Assign to Office
                   </Button>
+                </div>
+              )}
+
+              {officeAssignments && selectedOfficeId && (
+                <div className="space-y-2 pt-2 border-t border-emerald-100">
+                  <p className="text-xs font-semibold text-emerald-700">
+                    Current Assignments
+                    {officeRoomInfo && (
+                      <span className="text-muted-foreground font-normal"> — {officeRoomInfo.name}</span>
+                    )}
+                  </p>
+                  {Object.entries(officeAssignments).length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-2">No members assigned</p>
+                  ) : (
+                    Object.entries(officeAssignments).map(([role, members]) => (
+                      <div key={role}>
+                        <p className="text-[10px] font-medium text-muted-foreground mb-1">{role}s</p>
+                        {members.map((m) => (
+                          <div key={m.assignmentId} className="flex items-center justify-between p-2 rounded-md bg-emerald-50/50 mb-1">
+                            <div className="flex items-center gap-2">
+                              <UserCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                              <div>
+                                <p className="text-xs font-medium">{m.name}</p>
+                                <p className="text-[10px] text-muted-foreground font-mono">{m.userId}</p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => handleRemoveAssignment(m.assignmentId)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Current assignments */}
-          {selectedOfficeId && officeAssignments ? (
-            <Card className="border-emerald-100">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2 text-emerald-800">
-                  <Briefcase className="h-4 w-4" />
-                  {officeRoomInfo?.name || 'Office Details'}
-                </CardTitle>
-                {officeRoomInfo && (
-                  <CardDescription className="text-[11px]">
-                    {officeRoomInfo.building?.name}
-                  </CardDescription>
-                )}
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {/* College Dean */}
-                {officeAssignments['College Dean'] && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <Shield className="h-3.5 w-3.5 text-emerald-600" />
-                      <p className="text-xs font-semibold text-emerald-800">College Dean</p>
-                    </div>
-                    {officeAssignments['College Dean'].length === 0 ? (
-                      <p className="text-[11px] text-muted-foreground pl-6">No dean assigned</p>
-                    ) : (
-                      officeAssignments['College Dean'].map((a) => (
-                        <div key={a.assignmentId} className="flex items-center justify-between pl-6 py-1">
-                          <div className="flex items-center gap-2">
-                            <Badge className="bg-emerald-100 text-emerald-800 text-[10px] h-5">{a.name}</Badge>
-                            <span className="text-[10px] text-muted-foreground">({a.userId})</span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-5 w-5 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => handleRemoveAssignment(a.assignmentId)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-
-                {/* Assistant Dean */}
-                {officeAssignments['Assistant Dean'] && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <UserCheck className="h-3.5 w-3.5 text-teal-600" />
-                      <p className="text-xs font-semibold text-teal-800">Assistant Dean</p>
-                    </div>
-                    {officeAssignments['Assistant Dean'].length === 0 ? (
-                      <p className="text-[11px] text-muted-foreground pl-6">No assistant dean assigned</p>
-                    ) : (
-                      officeAssignments['Assistant Dean'].map((a) => (
-                        <div key={a.assignmentId} className="flex items-center justify-between pl-6 py-1">
-                          <div className="flex items-center gap-2">
-                            <Badge className="bg-teal-100 text-teal-800 text-[10px] h-5">{a.name}</Badge>
-                            <span className="text-[10px] text-muted-foreground">({a.userId})</span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-5 w-5 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => handleRemoveAssignment(a.assignmentId)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-
-                {/* Faculty Members */}
-                {officeAssignments['Faculty'] && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <BookOpen className="h-3.5 w-3.5 text-blue-600" />
-                      <p className="text-xs font-semibold text-blue-800">Faculty Members</p>
-                      <Badge variant="outline" className="text-[10px] h-4 px-1.5">{officeAssignments['Faculty'].length}</Badge>
-                    </div>
-                    {officeAssignments['Faculty'].length === 0 ? (
-                      <p className="text-[11px] text-muted-foreground pl-6">No faculty members assigned</p>
-                    ) : (
-                      <div className="space-y-1 pl-6">
-                        {officeAssignments['Faculty'].map((a) => (
-                          <div key={a.assignmentId} className="flex items-center justify-between py-0.5">
-                            <span className="text-xs">{a.name} <span className="text-[10px] text-muted-foreground">({a.userId})</span></span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 w-5 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                              onClick={() => handleRemoveAssignment(a.assignmentId)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Staff Members */}
-                {officeAssignments['Staff'] && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <Users className="h-3.5 w-3.5 text-amber-600" />
-                      <p className="text-xs font-semibold text-amber-800">Staff Members</p>
-                      <Badge variant="outline" className="text-[10px] h-4 px-1.5">{officeAssignments['Staff'].length}</Badge>
-                    </div>
-                    {officeAssignments['Staff'].length === 0 ? (
-                      <p className="text-[11px] text-muted-foreground pl-6">No staff members assigned</p>
-                    ) : (
-                      <div className="space-y-1 pl-6">
-                        {officeAssignments['Staff'].map((a) => (
-                          <div key={a.assignmentId} className="flex items-center justify-between py-0.5">
-                            <span className="text-xs">{a.name} <span className="text-[10px] text-muted-foreground">({a.userId})</span></span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 w-5 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                              onClick={() => handleRemoveAssignment(a.assignmentId)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ) : !selectedOfficeId ? (
-            /* Office overview list */
-            isLoading ? (
-              <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-lg" />)}</div>
-            ) : offices.length === 0 ? (
-              <div className="text-center py-8">
-                <Briefcase className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" />
-                <p className="text-sm text-muted-foreground">No office rooms found</p>
-                <p className="text-xs text-muted-foreground">Add rooms with &quot;Office&quot; in the name to manage assignments</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {offices.map((o) => (
-                  <motion.div
-                    key={o.id}
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                  >
-                    <Card className="border-emerald-100 overflow-hidden cursor-pointer hover:border-emerald-300 transition-colors" onClick={() => { setSelectedOfficeId(String(o.id)); fetchOfficeDetails(String(o.id)); }}>
-                      <CardContent className="p-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-100 text-emerald-700 shrink-0">
-                            <Briefcase className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-emerald-900 truncate">{o.name}</p>
-                            <p className="text-[10px] text-muted-foreground">{o.buildingName}</p>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            {o.assignments.length > 0 ? (
-                              <Badge className="bg-emerald-100 text-emerald-800 text-[10px] h-5">
-                                {o.assignments.length} assigned
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-[10px] h-5 text-muted-foreground">
-                                Empty
-                              </Badge>
-                            )}
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-            )
-          ) : (
+          {isLoading && offices.length === 0 && (
             <div className="flex justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
             </div>
           )}
         </TabsContent>
       </Tabs>
+
+      {/* ─── Building Dialog ─── */}
       <Dialog open={showBuildingDialog} onOpenChange={setShowBuildingDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -1269,21 +1319,37 @@ export function AdminView() {
         </DialogContent>
       </Dialog>
 
-      {/* ─── User Dialog ─── */}
+      {/* ─── Add User Dialog (Enhanced) ─── */}
       <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-emerald-800 flex items-center gap-2">
               <UserPlus className="h-5 w-5" />
               Add New User
             </DialogTitle>
             <DialogDescription>
-              Create a new user account (Faculty, Staff, or Student)
+              Create a new user account (Faculty, Staff, Student, or Admin)
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            {/* Role */}
             <div className="space-y-1.5">
-              <Label className="text-sm">9-Digit ID *</Label>
+              <Label className="text-sm">Role *</Label>
+              <select
+                value={userForm.role}
+                onChange={(e) => setUserForm({ ...userForm, role: e.target.value, college: '', program: '', yearLevel: '', department: '', position: '' })}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="Faculty">Faculty</option>
+                <option value="Staff">Staff</option>
+                <option value="Student">Student</option>
+                <option value="Admin">Admin</option>
+              </select>
+            </div>
+
+            {/* Common fields */}
+            <div className="space-y-1.5">
+              <Label className="text-sm">User ID *</Label>
               <Input
                 value={userForm.userId}
                 onChange={(e) => setUserForm({ ...userForm, userId: e.target.value.replace(/\D/g, '').slice(0, 9) })}
@@ -1301,33 +1367,291 @@ export function AdminView() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-sm">Password *</Label>
+              <Label className="text-sm flex items-center gap-1">
+                <Mail className="h-3.5 w-3.5" />
+                Email (optional)
+              </Label>
+              <Input
+                type="email"
+                value={userForm.email}
+                onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                placeholder="Email address"
+              />
+            </div>
+
+            {/* Student-specific fields */}
+            {userForm.role === 'Student' && (
+              <>
+                <Separator />
+                <p className="text-xs font-semibold text-emerald-700">Student Details</p>
+                <div className="space-y-1.5">
+                  <Label className="text-sm flex items-center gap-1">
+                    <GraduationCap className="h-3.5 w-3.5" />
+                    College
+                  </Label>
+                  <select
+                    value={userForm.college}
+                    onChange={(e) => setUserForm({ ...userForm, college: e.target.value, program: '' })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">-- Select college --</option>
+                    {COLLEGES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                {userForm.college && PROGRAMS_BY_COLLEGE[userForm.college] && (
+                  <div className="space-y-1.5">
+                    <Label className="text-sm flex items-center gap-1">
+                      <BookOpen className="h-3.5 w-3.5" />
+                      Program
+                    </Label>
+                    <select
+                      value={userForm.program}
+                      onChange={(e) => setUserForm({ ...userForm, program: e.target.value })}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      <option value="">-- Select program --</option>
+                      {PROGRAMS_BY_COLLEGE[userForm.college].map((p) => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Year Level</Label>
+                  <select
+                    value={userForm.yearLevel}
+                    onChange={(e) => setUserForm({ ...userForm, yearLevel: e.target.value })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">-- Select year level --</option>
+                    {YEAR_LEVELS.map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            {/* Staff-specific fields */}
+            {userForm.role === 'Staff' && (
+              <>
+                <Separator />
+                <p className="text-xs font-semibold text-amber-700">Staff Details</p>
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Department</Label>
+                  <Input
+                    value={userForm.department}
+                    onChange={(e) => setUserForm({ ...userForm, department: e.target.value })}
+                    placeholder="Department name"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Position</Label>
+                  <Input
+                    value={userForm.position}
+                    onChange={(e) => setUserForm({ ...userForm, position: e.target.value })}
+                    placeholder="Position / Job title"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Faculty-specific fields */}
+            {userForm.role === 'Faculty' && (
+              <>
+                <Separator />
+                <p className="text-xs font-semibold text-emerald-700">Faculty Details</p>
+                <div className="space-y-1.5">
+                  <Label className="text-sm flex items-center gap-1">
+                    <GraduationCap className="h-3.5 w-3.5" />
+                    College
+                  </Label>
+                  <select
+                    value={userForm.college}
+                    onChange={(e) => setUserForm({ ...userForm, college: e.target.value })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">-- Select college --</option>
+                    {COLLEGES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            {/* Password */}
+            <div className="space-y-1.5">
+              <Label className="text-sm">Password (optional)</Label>
               <Input
                 type="password"
                 value={userForm.password}
                 onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-                placeholder="Password"
+                placeholder="Leave empty for default"
               />
+              <p className="text-[10px] text-muted-foreground">Leave empty to use last name as default password</p>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm">Role *</Label>
-              <select
-                value={userForm.role}
-                onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <option value="Faculty">Faculty</option>
-                <option value="Staff">Staff</option>
-                <option value="Student">Student</option>
-                <option value="Admin">Admin</option>
-              </select>
-            </div>
+
             <Button
               onClick={handleCreateUser}
-              disabled={userForm.userId.length === 0 || !userForm.name || !userForm.password}
+              disabled={userForm.userId.length === 0 || !userForm.name}
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               Create User
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Edit User Dialog ─── */}
+      <Dialog open={showEditUserDialog} onOpenChange={setShowEditUserDialog}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-emerald-800 flex items-center gap-2">
+              <Pencil className="h-5 w-5" />
+              Edit User
+            </DialogTitle>
+            <DialogDescription>
+              Update user information for {editUserForm.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-sm">User ID</Label>
+              <Input value={editUserForm.userId} disabled className="bg-muted" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Full Name *</Label>
+              <Input
+                value={editUserForm.name}
+                onChange={(e) => setEditUserForm({ ...editUserForm, name: e.target.value })}
+                placeholder="Full name"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm flex items-center gap-1">
+                <Mail className="h-3.5 w-3.5" />
+                Email
+              </Label>
+              <Input
+                type="email"
+                value={editUserForm.email}
+                onChange={(e) => setEditUserForm({ ...editUserForm, email: e.target.value })}
+                placeholder="Email address"
+              />
+            </div>
+
+            {/* Student fields */}
+            {editUserForm.role === 'Student' && (
+              <>
+                <Separator />
+                <p className="text-xs font-semibold text-teal-700">Student Details</p>
+                <div className="space-y-1.5">
+                  <Label className="text-sm flex items-center gap-1">
+                    <GraduationCap className="h-3.5 w-3.5" />
+                    College
+                  </Label>
+                  <select
+                    value={editUserForm.college}
+                    onChange={(e) => setEditUserForm({ ...editUserForm, college: e.target.value, program: '' })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">-- Select college --</option>
+                    {COLLEGES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                {editUserForm.college && PROGRAMS_BY_COLLEGE[editUserForm.college] && (
+                  <div className="space-y-1.5">
+                    <Label className="text-sm flex items-center gap-1">
+                      <BookOpen className="h-3.5 w-3.5" />
+                      Program
+                    </Label>
+                    <select
+                      value={editUserForm.program}
+                      onChange={(e) => setEditUserForm({ ...editUserForm, program: e.target.value })}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      <option value="">-- Select program --</option>
+                      {PROGRAMS_BY_COLLEGE[editUserForm.college].map((p) => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Year Level</Label>
+                  <select
+                    value={editUserForm.yearLevel}
+                    onChange={(e) => setEditUserForm({ ...editUserForm, yearLevel: e.target.value })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">-- Select year level --</option>
+                    {YEAR_LEVELS.map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            {/* Faculty fields */}
+            {editUserForm.role === 'Faculty' && (
+              <>
+                <Separator />
+                <p className="text-xs font-semibold text-emerald-700">Faculty Details</p>
+                <div className="space-y-1.5">
+                  <Label className="text-sm flex items-center gap-1">
+                    <GraduationCap className="h-3.5 w-3.5" />
+                    College
+                  </Label>
+                  <select
+                    value={editUserForm.college}
+                    onChange={(e) => setEditUserForm({ ...editUserForm, college: e.target.value })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">-- Select college --</option>
+                    {COLLEGES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            {/* Staff fields */}
+            {editUserForm.role === 'Staff' && (
+              <>
+                <Separator />
+                <p className="text-xs font-semibold text-amber-700">Staff Details</p>
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Department</Label>
+                  <Input
+                    value={editUserForm.department}
+                    onChange={(e) => setEditUserForm({ ...editUserForm, department: e.target.value })}
+                    placeholder="Department name"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Position</Label>
+                  <Input
+                    value={editUserForm.position}
+                    onChange={(e) => setEditUserForm({ ...editUserForm, position: e.target.value })}
+                    placeholder="Position / Job title"
+                  />
+                </div>
+              </>
+            )}
+
+            <Button
+              onClick={handleEditUser}
+              disabled={!editUserForm.name}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              Save Changes
             </Button>
           </div>
         </DialogContent>

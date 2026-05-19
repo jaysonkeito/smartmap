@@ -1,6 +1,6 @@
 'use client';
 
-import { MapContainer, TileLayer, Polygon, Tooltip, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Tooltip, useMap, Polyline, CircleMarker } from 'react-leaflet';
 import { useEffect, useState } from 'react';
 import type { BuildingInfo } from '@/store/app-store';
 
@@ -8,6 +8,7 @@ interface CampusMapProps {
   buildings: BuildingInfo[];
   onBuildingClick: (building: BuildingInfo) => void;
   highlightedBuildingId?: number | null;
+  routeWaypoints?: [number, number][] | null;
 }
 
 // Color coding by building type with HIGHLIGHTED versions
@@ -153,7 +154,7 @@ function MapReadyHandler() {
   return null;
 }
 
-export default function CampusMap({ buildings, onBuildingClick, highlightedBuildingId }: CampusMapProps) {
+export default function CampusMap({ buildings, onBuildingClick, highlightedBuildingId, routeWaypoints }: CampusMapProps) {
   const mapCenter: [number, number] = [9.35343, 122.83817];
   const mapZoom = 18;
   const mapBounds: [[number, number], [number, number]] = [
@@ -168,6 +169,8 @@ export default function CampusMap({ buildings, onBuildingClick, highlightedBuild
       <MapContainer
         center={mapCenter}
         zoom={mapZoom}
+        minZoom={17}
+        maxZoom={21}
         bounds={mapBounds}
         maxBounds={mapBounds}
         maxBoundsViscosity={1.0}
@@ -232,6 +235,42 @@ export default function CampusMap({ buildings, onBuildingClick, highlightedBuild
             </Polygon>
           );
         })}
+        {/* Route polyline rendering */}
+        {routeWaypoints && routeWaypoints.length >= 2 && (
+          <>
+            <Polyline
+              positions={routeWaypoints}
+              pathOptions={{
+                color: '#059669',
+                weight: 5,
+                opacity: 0.9,
+                dashArray: '10, 6',
+              }}
+            />
+            {/* Start marker - green */}
+            <CircleMarker
+              center={routeWaypoints[0]}
+              radius={8}
+              pathOptions={{
+                color: '#FFFFFF',
+                fillColor: '#10B981',
+                fillOpacity: 1,
+                weight: 3,
+              }}
+            />
+            {/* End marker - red */}
+            <CircleMarker
+              center={routeWaypoints[routeWaypoints.length - 1]}
+              radius={8}
+              pathOptions={{
+                color: '#FFFFFF',
+                fillColor: '#EF4444',
+                fillOpacity: 1,
+                weight: 3,
+              }}
+            />
+          </>
+        )}
       </MapContainer>
 
       {/* Campus Name Header */}

@@ -9,9 +9,16 @@ import {
   Shield,
   Clock,
   Loader2,
+  Mail,
+  Lock,
+  Save,
+  GraduationCap,
+  Building2,
+  BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -23,6 +30,29 @@ export function ProfileView() {
   const [selectedRoom, setSelectedRoom] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // Editable fields
+  const [email, setEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Load user profile data
+  useEffect(() => {
+    if (user?.userId) {
+      const fetchProfile = async () => {
+        try {
+          const res = await fetch(`/api/profile?userId=${user.userId}`);
+          const data = await res.json();
+          if (res.ok && data.user) {
+            setEmail(data.user.email || '');
+          }
+        } catch {
+          // Silently fail
+        }
+      };
+      fetchProfile();
+    }
+  }, [user?.userId]);
 
   // Load buildings for room selection
   useEffect(() => {
@@ -42,6 +72,33 @@ export function ProfileView() {
     };
     loadBuildings();
   }, []);
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    setIsSaving(true);
+    try {
+      const body: Record<string, string> = { userId: user.userId };
+      if (email) body.email = email;
+      if (newPassword) body.password = newPassword;
+
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFlashMessage({ type: 'success', text: 'Profile updated successfully!' });
+        setNewPassword('');
+      } else {
+        setFlashMessage({ type: 'error', text: data.error || 'Failed to update profile' });
+      }
+    } catch {
+      setFlashMessage({ type: 'error', text: 'Failed to update profile' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleRoomLogin = async () => {
     if (!user || !selectedRoom) return;
@@ -96,7 +153,13 @@ export function ProfileView() {
     Faculty: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     Staff: 'bg-amber-100 text-amber-800 border-amber-200',
     Student: 'bg-teal-100 text-teal-800 border-teal-200',
+    Admin: 'bg-red-100 text-red-800 border-red-200',
   };
+
+  const isStudent = user?.role === 'Student';
+  const isFaculty = user?.role === 'Faculty';
+  const isAdmin = user?.role === 'Admin';
+  const showEditableFields = isStudent || isFaculty;
 
   return (
     <motion.div
@@ -130,9 +193,91 @@ export function ProfileView() {
               <span className="text-muted-foreground">ID:</span>
               <span className="font-mono font-medium">{user?.userId}</span>
             </div>
+
+            {/* Student-specific read-only info */}
+            {isStudent && (
+              <>
+                <div className="flex items-center gap-2 text-sm">
+                  <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Student ID:</span>
+                  <span className="font-medium">{user?.userId}</span>
+                </div>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
+
+      {/* Editable Profile Card - Students & Faculty */}
+      {showEditableFields && (
+        <Card className="border-emerald-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2 text-emerald-800">
+              <Mail className="h-4 w-4" />
+              Edit Profile
+            </CardTitle>
+            <CardDescription>Update your email and password</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-sm flex items-center gap-1.5">
+                <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                Email
+              </Label>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email address"
+                className="h-10"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm flex items-center gap-1.5">
+                <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                New Password
+              </Label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Leave empty to keep current password"
+                className="h-10"
+              />
+            </div>
+            <Button
+              onClick={handleSaveProfile}
+              disabled={isSaving || (!email && !newPassword)}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Save Changes
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Admin profile - no editable fields, just info */}
+      {isAdmin && (
+        <Card className="border-emerald-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2 text-emerald-800">
+              <Shield className="h-4 w-4" />
+              Admin Account
+            </CardTitle>
+            <CardDescription>Administrator privileges are active</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              This account has full administrative access to manage buildings, rooms, users, and all system settings.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Room Login Card */}
       <Card className="border-emerald-200">

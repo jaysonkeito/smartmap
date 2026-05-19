@@ -7,6 +7,10 @@ export interface UserInfo {
   name: string;
   role: string;
   isAdmin: boolean;
+  email?: string;
+  college?: string;
+  program?: string;
+  yearLevel?: string;
 }
 
 export interface RoomInfo {
@@ -51,10 +55,12 @@ interface AppState {
   // Auth
   user: UserInfo | null;
   isLoggedIn: boolean;
+  needsActivation: boolean;
   flashMessage: { type: 'success' | 'error'; text: string } | null;
   login: (user: UserInfo) => void;
   logout: () => void;
   setFlashMessage: (msg: { type: 'success' | 'error'; text: string } | null) => void;
+  setNeedsActivation: (needs: boolean) => void;
 
   // Navigation
   currentView: ViewType;
@@ -83,12 +89,25 @@ interface AppState {
   // Active logins by building
   activeLoginsByBuilding: Record<number, number>;
   setActiveLoginsByBuilding: (logins: Record<number, number>) => void;
+
+  // Navigation/Routing
+  navStart: { type: 'building' | 'room'; id: number; name: string } | null;
+  setNavStart: (start: { type: 'building' | 'room'; id: number; name: string } | null) => void;
+  navEnd: { type: 'building' | 'room'; id: number; name: string } | null;
+  setNavEnd: (end: { type: 'building' | 'room'; id: number; name: string } | null) => void;
+  routeWaypoints: [number, number][] | null;
+  setRouteWaypoints: (waypoints: [number, number][] | null) => void;
+  routeInfo: { distanceMeters: number; estimatedMinutes: number; stepCount: number } | null;
+  setRouteInfo: (info: { distanceMeters: number; estimatedMinutes: number; stepCount: number } | null) => void;
+  showNavigation: boolean;
+  setShowNavigation: (show: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
   // Auth
   user: null,
   isLoggedIn: false,
+  needsActivation: false,
   flashMessage: null,
   login: (user) => set({ user, isLoggedIn: true, flashMessage: null }),
   logout: () =>
@@ -100,8 +119,15 @@ export const useAppStore = create<AppState>((set) => ({
       selectedRoomStatus: null,
       currentRoomLogin: null,
       flashMessage: null,
+      navStart: null,
+      navEnd: null,
+      routeWaypoints: null,
+      routeInfo: null,
+      showNavigation: false,
+      needsActivation: false,
     }),
   setFlashMessage: (msg) => set({ flashMessage: msg }),
+  setNeedsActivation: (needs) => set({ needsActivation: needs }),
 
   // Navigation
   currentView: 'home',
@@ -130,4 +156,16 @@ export const useAppStore = create<AppState>((set) => ({
   // Active logins by building
   activeLoginsByBuilding: {},
   setActiveLoginsByBuilding: (logins) => set({ activeLoginsByBuilding: logins }),
+
+  // Navigation/Routing
+  navStart: null,
+  setNavStart: (start) => set({ navStart: start }),
+  navEnd: null,
+  setNavEnd: (end) => set({ navEnd: end }),
+  routeWaypoints: null,
+  setRouteWaypoints: (waypoints) => set({ routeWaypoints: waypoints }),
+  routeInfo: null,
+  setRouteInfo: (info) => set({ routeInfo: info }),
+  showNavigation: false,
+  setShowNavigation: (show) => set({ showNavigation: show }),
 }));

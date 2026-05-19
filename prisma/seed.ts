@@ -163,25 +163,25 @@ const buildings = [
 
 // Sample faculty records from the original database
 const facultyData = [
-  { facultyId: "202300399", name: "Jayson Fuentes", email: "jayson.f.bsinfotech@gmail.com" },
-  { facultyId: "202300361", name: "Maria Santos", email: "maria.santos@norsu.edu.ph" },
-  { facultyId: "202300401", name: "Roberto Cruz", email: "roberto.cruz@norsu.edu.ph" },
-  { facultyId: "202300415", name: "Ana Reyes", email: "ana.reyes@norsu.edu.ph" },
+  { facultyId: "202300399", name: "Jayson Fuentes", email: "jayson.f.bsinfotech@gmail.com", college: "College of Industrial Technology (CIT)" },
+  { facultyId: "202300361", name: "Maria Santos", email: "maria.santos@norsu.edu.ph", college: "College of Arts and Sciences (CAS)" },
+  { facultyId: "202300401", name: "Roberto Cruz", email: "roberto.cruz@norsu.edu.ph", college: "College of Business Administration (CBA)" },
+  { facultyId: "202300415", name: "Ana Reyes", email: "ana.reyes@norsu.edu.ph", college: "College of Criminal Justice Education (CCJE)" },
 ];
 
 // Sample staff records
 const staffData = [
-  { staffId: "202300500", name: "Carlo Mendoza", email: "carlo.mendoza@norsu.edu.ph" },
-  { staffId: "202300501", name: "Elena Villanueva", email: "elena.villanueva@norsu.edu.ph" },
+  { staffId: "202300500", name: "Carlo Mendoza", email: "carlo.mendoza@norsu.edu.ph", department: "Registrar Office", position: "Records Clerk" },
+  { staffId: "202300501", name: "Elena Villanueva", email: "elena.villanueva@norsu.edu.ph", department: "Administration", position: "Administrative Aide" },
 ];
 
 // Sample student records
 const studentData = [
-  { studentId: "202300123", name: "Juan Dela Cruz", email: "juan.delacruz@norsu.edu.ph" },
-  { studentId: "202300124", name: "Maria Garcia", email: "maria.garcia@norsu.edu.ph" },
-  { studentId: "202300125", name: "Pedro Reyes", email: "pedro.reyes@norsu.edu.ph" },
-  { studentId: "202300126", name: "Santos Rivera", email: "santos.rivera@norsu.edu.ph" },
-  { studentId: "202300127", name: "Carmen Aquino", email: "carmen.aquino@norsu.edu.ph" },
+  { studentId: "202300123", name: "Juan Dela Cruz", email: "juan.delacruz@norsu.edu.ph", college: "College of Industrial Technology (CIT)", program: "Bachelor of Science in Information Technology", yearLevel: "3rd Year" },
+  { studentId: "202300124", name: "Maria Garcia", email: "maria.garcia@norsu.edu.ph", college: "College of Arts and Sciences (CAS)", program: "Bachelor of Science in Psychology", yearLevel: "2nd Year" },
+  { studentId: "202300125", name: "Pedro Reyes", email: "pedro.reyes@norsu.edu.ph", college: "College of Criminal Justice Education (CCJE)", program: "Bachelor of Science in Criminology", yearLevel: "1st Year" },
+  { studentId: "202300126", name: "Santos Rivera", email: "santos.rivera@norsu.edu.ph", college: "College of Business Administration (CBA)", program: "Bachelor of Science in Business Administration", yearLevel: "4th Year" },
+  { studentId: "202300127", name: "Carmen Aquino", email: "carmen.aquino@norsu.edu.ph", college: "College of Teacher Education (CTED)", program: "Bachelor of Elementary Education", yearLevel: "2nd Year" },
 ];
 
 async function main() {
@@ -239,14 +239,14 @@ async function main() {
   // Create test AppUser accounts (with known passwords for testing)
   console.log('Creating test user accounts...');
   const testUsers = [
-    { userId: "202300399", name: "Jayson Fuentes", role: "Faculty", password: "password123", isAdmin: false },
-    { userId: "202300361", name: "Maria Santos", role: "Faculty", password: "password123", isAdmin: false },
-    { userId: "202300401", name: "Roberto Cruz", role: "Faculty", password: "password123", isAdmin: false },
-    { userId: "202300415", name: "Ana Reyes", role: "Faculty", password: "password123", isAdmin: false },
-    { userId: "202300500", name: "Carlo Mendoza", role: "Staff", password: "password123", isAdmin: false },
-    { userId: "202300501", name: "Elena Villanueva", role: "Staff", password: "password123", isAdmin: false },
-    { userId: "202300123", name: "Juan Dela Cruz", role: "Student", password: "password123", isAdmin: false },
-    { userId: "202300124", name: "Maria Garcia", role: "Student", password: "password123", isAdmin: false },
+    { userId: "202300399", name: "Jayson Fuentes", role: "Faculty", password: "password123", isAdmin: false, college: "College of Industrial Technology (CIT)", email: "jayson.f.bsinfotech@gmail.com" },
+    { userId: "202300361", name: "Maria Santos", role: "Faculty", password: "password123", isAdmin: false, college: "College of Arts and Sciences (CAS)", email: "maria.santos@norsu.edu.ph" },
+    { userId: "202300401", name: "Roberto Cruz", role: "Faculty", password: "password123", isAdmin: false, college: "College of Business Administration (CBA)", email: "roberto.cruz@norsu.edu.ph" },
+    { userId: "202300415", name: "Ana Reyes", role: "Faculty", password: "password123", isAdmin: false, college: "College of Criminal Justice Education (CCJE)", email: "ana.reyes@norsu.edu.ph" },
+    { userId: "202300500", name: "Carlo Mendoza", role: "Staff", password: "password123", isAdmin: false, department: "Registrar Office", position: "Records Clerk", email: "carlo.mendoza@norsu.edu.ph" },
+    { userId: "202300501", name: "Elena Villanueva", role: "Staff", password: "password123", isAdmin: false, department: "Administration", position: "Administrative Aide", email: "elena.villanueva@norsu.edu.ph" },
+    { userId: "202300123", name: "Juan Dela Cruz", role: "Student", password: "password123", isAdmin: false, college: "College of Industrial Technology (CIT)", program: "Bachelor of Science in Information Technology", yearLevel: "3rd Year", email: "juan.delacruz@norsu.edu.ph" },
+    { userId: "202300124", name: "Maria Garcia", role: "Student", password: "password123", isAdmin: false, college: "College of Arts and Sciences (CAS)", program: "Bachelor of Science in Psychology", yearLevel: "2nd Year", email: "maria.garcia@norsu.edu.ph" },
     // Admin account
     { userId: "202600001", name: "System Administrator", role: "Admin", password: "admin2026", isAdmin: true },
   ];
@@ -260,6 +260,14 @@ async function main() {
         role: u.role,
         password: hashedPassword,
         isAdmin: u.isAdmin,
+        email: u.email || null,
+        college: u.college || null,
+        program: u.program || null,
+        yearLevel: u.yearLevel || null,
+        department: u.department || null,
+        position: u.position || null,
+        isActive: true,
+        lastActivityAt: new Date(),
       },
     });
   }

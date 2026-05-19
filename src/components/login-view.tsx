@@ -2,11 +2,18 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { GraduationCap, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { GraduationCap, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useAppStore } from '@/store/app-store';
 
 export function LoginView() {
@@ -16,6 +23,36 @@ export function LoginView() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Activation flow
+  const [needsActivation, setNeedsActivation] = useState(false);
+  const [activationUserId, setActivationUserId] = useState('');
+  const [isActivating, setIsActivating] = useState(false);
+
+  const handleActivate = async () => {
+    if (!activationUserId) return;
+    setIsActivating(true);
+    try {
+      const res = await fetch('/api/auth/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: activationUserId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setNeedsActivation(false);
+        setFlashMessage({ type: 'success', text: 'Account activated! Please sign in again.' });
+        setActivationUserId('');
+        setPassword('');
+      } else {
+        setFlashMessage({ type: 'error', text: data.error || 'Activation failed' });
+      }
+    } catch {
+      setFlashMessage({ type: 'error', text: 'Activation failed. Please try again.' });
+    } finally {
+      setIsActivating(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +87,10 @@ export function LoginView() {
 
         if (!res.ok) {
           setFlashMessage({ type: 'error', text: data.error });
+        } else if (data.needsActivation) {
+          // Show activation dialog
+          setActivationUserId(data.user?.userId || idNumber);
+          setNeedsActivation(true);
         } else {
           login(data.user);
           setFlashMessage({
@@ -186,6 +227,42 @@ export function LoginView() {
           Negros Oriental State University &copy; {new Date().getFullYear()}
         </p>
       </motion.div>
+
+      {/* Activation Dialog */}
+      <Dialog open={needsActivation} onOpenChange={(open) => {
+        if (!open) {
+          setNeedsActivation(false);
+          setActivationUserId('');
+        }
+      }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-emerald-800 flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-500" />
+              Account Re-Activation Required
+            </DialogTitle>
+            <DialogDescription>
+              Your account requires re-activation due to 3 days of inactivity.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              To continue using your account, please activate it by clicking the button below.
+              This will restore your access immediately.
+            </p>
+            <Button
+              onClick={handleActivate}
+              disabled={isActivating}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {isActivating ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Activate Account
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -4,18 +4,18 @@ import { hash } from 'bcryptjs';
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, password } = await request.json();
+    const { userId, name, password, role } = await request.json();
 
-    if (!userId || !password) {
+    if (!userId) {
       return NextResponse.json(
-        { error: 'ID number and password are required' },
+        { error: 'ID number is required' },
         { status: 400 }
       );
     }
 
-    if (userId.length < 1) {
+    if (!name) {
       return NextResponse.json(
-        { error: 'ID number is required' },
+        { error: 'Name is required' },
         { status: 400 }
       );
     }
@@ -32,47 +32,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if the ID exists in faculty, staff, or student records
-    let name = '';
-    let role = '';
+    // Derive default password from last name if no password provided
+    const nameWords = name.trim().split(/\s+/);
+    const lastName = nameWords.length > 0 ? nameWords[nameWords.length - 1] : name;
+    const effectivePassword = password && password.length > 0 ? password : lastName.toLowerCase();
 
-    const faculty = await db.faculty.findUnique({ where: { facultyId: userId } });
-    if (faculty) {
-      name = faculty.name;
-      role = 'Faculty';
-    }
-
-    if (!name) {
-      const staff = await db.staff.findUnique({ where: { staffId: userId } });
-      if (staff) {
-        name = staff.name;
-        role = 'Staff';
-      }
-    }
-
-    if (!name) {
-      const student = await db.student.findUnique({ where: { studentId: userId } });
-      if (student) {
-        name = student.name;
-        role = 'Student';
-      }
-    }
-
-    if (!name) {
+    // Determine role (default to Student if not specified)
+    const effectiveRole = role || 'Student';
+    if (!['Faculty', 'Staff', 'Student', 'Admin'].includes(effectiveRole)) {
       return NextResponse.json(
-        { error: 'ID number not found in university records. Please contact the registrar.' },
-        { status: 404 }
+        { error: 'Role must be Faculty, Staff, Student, or Admin' },
+        { status: 400 }
       );
     }
 
     // Create the app user
-    const hashedPassword = await hash(password, 10);
+    const hashedPassword = await hash(effectivePassword, 10);
     const user = await db.appUser.create({
       data: {
         userId,
         name,
-        role,
+        role: effectiveRole,
         password: hashedPassword,
+        isAdmin: effectiveRole === 'Admin',
+        isActive: true,
+        lastActivityAt: new Date(),
       },
     });
 
