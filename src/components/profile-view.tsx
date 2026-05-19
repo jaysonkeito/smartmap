@@ -159,7 +159,8 @@ export function ProfileView() {
   const isStudent = user?.role === 'Student';
   const isFaculty = user?.role === 'Faculty';
   const isAdmin = user?.role === 'Admin';
-  const showEditableFields = isStudent || isFaculty;
+  const isStaff = user?.role === 'Staff';
+  const showEditableFields = isStudent || isFaculty || isStaff;
 
   return (
     <motion.div
@@ -197,12 +198,57 @@ export function ProfileView() {
             {/* Student-specific read-only info */}
             {isStudent && (
               <>
-                <div className="flex items-center gap-2 text-sm">
-                  <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Student ID:</span>
-                  <span className="font-medium">{user?.userId}</span>
-                </div>
+                {user?.college && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">College:</span>
+                    <span className="font-medium text-xs">{user.college}</span>
+                  </div>
+                )}
+                {user?.program && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <BookOpen className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Program:</span>
+                    <span className="font-medium text-xs">{user.program}</span>
+                  </div>
+                )}
+                {user?.yearLevel && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Year Level:</span>
+                    <span className="font-medium">{user.yearLevel}</span>
+                  </div>
+                )}
               </>
+            )}
+
+            {/* Staff-specific read-only info */}
+            {user?.role === 'Staff' && (
+              <>
+                {user?.department && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Department:</span>
+                    <span className="font-medium">{user.department}</span>
+                  </div>
+                )}
+                {user?.position && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Position:</span>
+                    <span className="font-medium">{user.position}</span>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Faculty-specific read-only info */}
+            {isFaculty && user?.college && (
+              <div className="flex items-center gap-2 text-sm">
+                <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">College:</span>
+                <span className="font-medium text-xs">{user.college}</span>
+              </div>
             )}
           </div>
         </CardContent>

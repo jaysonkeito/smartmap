@@ -21,7 +21,6 @@ export function LoginView() {
   const [idNumber, setIdNumber] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // Activation flow
@@ -59,45 +58,25 @@ export function LoginView() {
     setIsLoading(true);
 
     try {
-      if (isSignUp) {
-        const res = await fetch('/api/auth/signup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: idNumber, password }),
-        });
-        const data = await res.json();
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: idNumber, password }),
+      });
+      const data = await res.json();
 
-        if (!res.ok) {
-          setFlashMessage({ type: 'error', text: data.error });
-        } else {
-          setFlashMessage({
-            type: 'success',
-            text: 'Account created! You can now sign in.',
-          });
-          setIsSignUp(false);
-          setPassword('');
-        }
+      if (!res.ok) {
+        setFlashMessage({ type: 'error', text: data.error });
+      } else if (data.needsActivation) {
+        // Show activation dialog
+        setActivationUserId(data.user?.userId || idNumber);
+        setNeedsActivation(true);
       } else {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: idNumber, password }),
+        login(data.user);
+        setFlashMessage({
+          type: 'success',
+          text: `Welcome, ${data.user.name}!`,
         });
-        const data = await res.json();
-
-        if (!res.ok) {
-          setFlashMessage({ type: 'error', text: data.error });
-        } else if (data.needsActivation) {
-          // Show activation dialog
-          setActivationUserId(data.user?.userId || idNumber);
-          setNeedsActivation(true);
-        } else {
-          login(data.user);
-          setFlashMessage({
-            type: 'success',
-            text: `Welcome, ${data.user.name}!`,
-          });
-        }
       }
     } catch {
       setFlashMessage({ type: 'error', text: 'Network error. Please try again.' });
@@ -203,22 +182,14 @@ export function LoginView() {
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : null}
-                {isSignUp ? 'Sign Up' : 'Sign In'}
+                Sign In
               </Button>
             </form>
 
             <div className="mt-4 text-center">
-              <button
-                onClick={() => {
-                  setIsSignUp(!isSignUp);
-                  setFlashMessage(null);
-                }}
-                className="text-sm text-emerald-700 hover:text-emerald-800 hover:underline font-medium transition-colors"
-              >
-                {isSignUp
-                  ? 'Already have a password? Sign In'
-                  : "Don't have a password? Sign Up"}
-              </button>
+              <p className="text-xs text-muted-foreground">
+                Contact the administrator if you don&apos;t have an account yet.
+              </p>
             </div>
           </CardContent>
         </Card>

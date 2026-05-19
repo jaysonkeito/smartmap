@@ -1352,10 +1352,9 @@ export function AdminView() {
               <Label className="text-sm">User ID *</Label>
               <Input
                 value={userForm.userId}
-                onChange={(e) => setUserForm({ ...userForm, userId: e.target.value.replace(/\D/g, '').slice(0, 9) })}
-                placeholder="Enter 9-digit ID"
-                maxLength={9}
-                inputMode="numeric"
+                onChange={(e) => setUserForm({ ...userForm, userId: e.target.value.trim() })}
+                placeholder="Enter User ID"
+                maxLength={20}
               />
             </div>
             <div className="space-y-1.5">
@@ -1496,7 +1495,7 @@ export function AdminView() {
 
             <Button
               onClick={handleCreateUser}
-              disabled={userForm.userId.length === 0 || !userForm.name}
+              disabled={userForm.userId.length === 0 || !userForm.name.trim()}
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               Create User

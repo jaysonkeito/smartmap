@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json(
-        { error: 'User not found. Please sign up first.' },
+        { error: 'User not found. Please contact the administrator to register.' },
         { status: 404 }
       );
     }
@@ -32,8 +32,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Compare password: convert input to lowercase first
-    const passwordMatch = await compare(password.toLowerCase(), user.password);
+    // Compare password: try original first, then lowercase for default password compatibility
+    // Default password is last name in lowercase; if user types it with uppercase, we still match
+    let passwordMatch = await compare(password, user.password);
+    if (!passwordMatch) {
+      passwordMatch = await compare(password.toLowerCase(), user.password);
+    }
 
     if (!passwordMatch) {
       return NextResponse.json(
@@ -75,6 +79,12 @@ export async function POST(request: NextRequest) {
         name: user.name,
         role: user.role,
         isAdmin: user.isAdmin,
+        email: user.email,
+        college: user.college,
+        program: user.program,
+        yearLevel: user.yearLevel,
+        department: user.department,
+        position: user.position,
       },
     });
   } catch (error) {

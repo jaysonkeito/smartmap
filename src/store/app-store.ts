@@ -11,6 +11,8 @@ export interface UserInfo {
   college?: string;
   program?: string;
   yearLevel?: string;
+  department?: string;
+  position?: string;
 }
 
 export interface RoomInfo {

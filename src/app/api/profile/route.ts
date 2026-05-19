@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ profile: user });
+    return NextResponse.json({ user });
   } catch (error) {
     console.error('Profile GET error:', error);
     return NextResponse.json(
@@ -96,7 +96,7 @@ export async function PUT(request: NextRequest) {
     // Only update if there's something to update
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
-        { error: 'No updatable fields provided. Students can only update email and password.' },
+        { error: 'No updatable fields provided. You can only update email and password.' },
         { status: 400 }
       );
     }
