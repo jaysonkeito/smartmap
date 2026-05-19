@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Building {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  coordinates String   // JSON string of [lat, lng] arrays
+  color       String?  // Hex color code for map display
+  rooms       Room[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Room {
+  id         Int          @id @default(autoincrement())
+  name       String
+  buildingId Int
+  building   Building     @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  logins     RoomLogin[]
+  assignments OfficeAssignment[]
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([buildingId])
+}
+
+model Faculty {
+  id        Int      @id @default(autoincrement())
+  facultyId String   @unique
+  name      String
+  password  String?
+  email     String?
+  qrCode    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Staff {
+  id        Int      @id @default(autoincrement())
+  staffId   String   @unique
+  name      String
+  password  String?
+  email     String?
+  qrCode    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Student {
+  id        Int      @id @default(autoincrement())
+  studentId String   @unique
+  name      String
+  password  String?
+  email     String?
+  qrCode    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AppUser {
+  id        Int      @id @default(autoincrement())
+  userId    String   @unique
+  name      String
+  role      String   // Faculty, Staff, Student, Admin
+  password  String
+  isAdmin   Boolean  @default(false)
+  logins    RoomLogin[]
+  officeAssignments OfficeAssignment[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RoomLogin {
+  id         Int      @id @default(autoincrement())
+  roomId     Int
+  room       Room     @relation(fields: [roomId], references: [id])
+  userId     String
+  user       AppUser  @relation(fields: [userId], references: [userId])
+  role       String   // Faculty, Staff, Student
+  loginTime  DateTime @default(now())
+  logoutTime DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([roomId])
+  @@index([userId])
+}
+
+model OfficeAssignment {
+  id        Int      @id @default(autoincrement())
+  roomId    Int
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId    String
+  user      AppUser  @relation(fields: [userId], references: [userId])
+  role      String   // College Dean, Assistant Dean, Faculty, Staff
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roomId, userId, role])
+  @@index([roomId])
+  @@index([userId])
+}
